@@ -28,18 +28,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && is_admin()) {
         $r = replace_image_in_post($_POST['post_id'], $_POST['img_id'], null, $_POST['rep_url']);
         $msg = $r['ok'] ? '<div class="msg msg-ok">ok</div>' : '<div class="msg msg-err">'.h($r['error']).'</div>';
     } elseif ($act === 'edit' && !empty($_POST['post_id'])) {
-        edit_entry('image', $_POST['post_id'], trim($_POST['title'] ?? ''), trim($_POST['memo'] ?? ''), isset($_POST['blind']));
-        $msg = '<div class="msg msg-ok">ok</div>';
+        $ok = edit_entry('image', $_POST['post_id'], trim($_POST['title'] ?? ''), trim($_POST['memo'] ?? ''), isset($_POST['blind']));
+        $msg = $ok ? '<div class="msg msg-ok">ok</div>' : '<div class="msg msg-err">수정 실패</div>';
+    } elseif ($act === 'delete_post' && !empty($_POST['post_id'])) {
+        $ok = delete_entry('image', $_POST['post_id']);
+        $msg = $ok ? '<div class="msg msg-ok">deleted</div>' : '<div class="msg msg-err">삭제 실패</div>';
+    } elseif ($act === 'delete_image' && !empty($_POST['post_id']) && !empty($_POST['img_id'])) {
+        $ok = delete_single_image($_POST['post_id'], $_POST['img_id']);
+        $msg = $ok ? '<div class="msg msg-ok">deleted</div>' : '<div class="msg msg-err">삭제 실패</div>';
     }
-}
-
-if (isset($_GET['del_post']) && is_admin()) {
-    delete_entry('image', $_GET['del_post']);
-    echo '<script>location.href="gallery.php";</script>'; exit;
-}
-if (isset($_GET['del_img'], $_GET['from_post']) && is_admin()) {
-    delete_single_image($_GET['from_post'], $_GET['del_img']);
-    echo '<script>location.href="gallery.php?page='.intval($_GET['page'] ?? 1).'";</script>'; exit;
 }
 
 // === Data + pagination ===
@@ -136,9 +133,12 @@ echo $msg;
 
       <?php if (is_admin()): ?>
         <?php if (count($post['images']) > 1): ?>
-          &nbsp;<a href="?del_img=<?= urlencode($img['id']) ?>&from_post=<?= urlencode($post['id']) ?>&page=<?= $page ?>"
-                  style="color:#c00;font-size:7pt;"
-                  onclick="return confirm('이 이미지만 삭제?')">[x]</a>
+          <form method="post" class="inline-action" onsubmit="return confirm('이 이미지만 삭제?')">
+            <input type="hidden" name="act" value="delete_image">
+            <input type="hidden" name="post_id" value="<?= h($post['id']) ?>">
+            <input type="hidden" name="img_id" value="<?= h($img['id']) ?>">
+            <button type="submit" class="link-button danger">[x]</button>
+          </form>
         <?php endif; ?>
 
         &nbsp;<a href="#"
@@ -212,7 +212,11 @@ echo $msg;
       </form>
     </details>
 
-    <a href="?del_post=<?= urlencode($post['id']) ?>" style="color:#c00;font-size:7pt;" onclick="return confirm('이 포스트 전체 삭제?')">[DELETE POST]</a>
+    <form method="post" class="inline-action" onsubmit="return confirm('이 포스트 전체 삭제?')">
+      <input type="hidden" name="act" value="delete_post">
+      <input type="hidden" name="post_id" value="<?= h($post['id']) ?>">
+      <button type="submit" class="link-button danger">[DELETE POST]</button>
+    </form>
   </div>
   <?php endif; ?>
 
@@ -223,13 +227,5 @@ echo $msg;
   <img id="lbImg" src="" alt="">
 </div>
 
-<script>
-function reveal(){document.getElementById('gate').style.display='none';document.getElementById('content').classList.add('revealed');}
-function decline(){document.getElementById('gate').innerHTML='<p style="color:#ccc">-</p>';}
-function openLightbox(s){document.getElementById('lbImg').src=s;document.getElementById('lightbox').classList.add('open');document.body.style.overflow='hidden';}
-function closeLightbox(){document.getElementById('lightbox').classList.remove('open');document.body.style.overflow='';}
-document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox();});
-function showForm(p,t){document.querySelectorAll('#'+p+'_form_file,#'+p+'_form_url').forEach(function(f){f.classList.remove('active');});document.getElementById(p+'_form_'+t).classList.add('active');}
-</script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

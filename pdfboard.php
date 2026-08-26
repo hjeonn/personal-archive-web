@@ -6,6 +6,7 @@ $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && is_admin()) {
     $act = $_POST['act'] ?? '';
     $blind = isset($_POST['blind']);
+
     if ($act === 'new_file' && !empty($_FILES['pdffile']['name'])) {
         $r = upload_pdf($_FILES['pdffile'], trim($_POST['title'] ?? ''), trim($_POST['memo'] ?? ''), $blind);
         $msg = $r['ok'] ? '<div class="msg msg-ok">ok</div>' : '<div class="msg msg-err">'.h($r['error']).'</div>';
@@ -13,14 +14,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && is_admin()) {
         $r = ref_pdf_url($_POST['pdf_url'], trim($_POST['title'] ?? ''), trim($_POST['memo'] ?? ''), $blind);
         $msg = $r['ok'] ? '<div class="msg msg-ok">ok</div>' : '<div class="msg msg-err">'.h($r['error']).'</div>';
     } elseif ($act === 'edit' && !empty($_POST['post_id'])) {
-        edit_entry('pdf', $_POST['post_id'], trim($_POST['title'] ?? ''), trim($_POST['memo'] ?? ''), isset($_POST['blind']));
-        $msg = '<div class="msg msg-ok">ok</div>';
+        $ok = edit_entry('pdf', $_POST['post_id'], trim($_POST['title'] ?? ''), trim($_POST['memo'] ?? ''), isset($_POST['blind']));
+        $msg = $ok ? '<div class="msg msg-ok">ok</div>' : '<div class="msg msg-err">수정 실패</div>';
+    } elseif ($act === 'delete_post' && !empty($_POST['post_id'])) {
+        $ok = delete_entry('pdf', $_POST['post_id']);
+        $msg = $ok ? '<div class="msg msg-ok">deleted</div>' : '<div class="msg msg-err">삭제 실패</div>';
     }
-}
-
-if (isset($_GET['delete']) && is_admin()) {
-    delete_entry('pdf', $_GET['delete']);
-    echo '<script>location.href="pdfboard.php";</script>'; exit;
 }
 
 $db = db_read(DB_PDFS);
@@ -69,6 +68,7 @@ echo $msg;
     <div style="margin-bottom:4px"><label style="font-size:7pt;color:#999;cursor:pointer;"><input type="checkbox" name="blind" style="vertical-align:middle;"> blind</label></div>
     <button type="submit" class="btn">SAVE</button>
   </form>
+</details>
 <?php endif; ?>
 
 <?php if (!$cur): ?>
@@ -111,17 +111,16 @@ echo $msg;
           <button type="submit" class="btn">SAVE</button>
         </form>
       </details>
-      <a href="?delete=<?= urlencode($cur['id']) ?>" style="color:#c00;font-size:7pt;" onclick="return confirm('삭제?')">[DELETE]</a>
+      <form method="post" class="inline-action" onsubmit="return confirm('삭제?')">
+        <input type="hidden" name="act" value="delete_post">
+        <input type="hidden" name="post_id" value="<?= h($cur['id']) ?>">
+        <button type="submit" class="link-button danger">[DELETE]</button>
+      </form>
     </div>
     <?php endif; ?>
   </div>
 </div>
 <?php endif; ?>
 
-<script>
-function reveal(){document.getElementById('gate').style.display='none';document.getElementById('content').classList.add('revealed');}
-function decline(){document.getElementById('gate').innerHTML='<p style="color:#ccc">-</p>';}
-function showForm(p,t){document.querySelectorAll('#'+p+'_form_file,#'+p+'_form_url').forEach(function(f){f.classList.remove('active');});document.getElementById(p+'_form_'+t).classList.add('active');}
-</script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

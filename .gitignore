@@ -1,6 +1,7 @@
 data/images/*
 data/pdfs/*
 data/thumbs/*
+outdated/*
 !data/images/.gitkeep
 !data/pdfs/.gitkeep
 !data/thumbs/.gitkeep

@@ -1,11 +1,23 @@
 <?php
-define('SITE_TITLE', 'Archive');
-define('SITE_TAB_TITLE', 'Archive');
+// ===== Site identity =====
+define('SITE_TITLE', 'Personal Archive');
+define('SITE_TAB_TITLE', 'Personal Archive');
 define('SITE_SUBTITLE', '');
 
-// Keep credentials out of the repository. Set ADMIN_PASSWORD in the server environment.
-define('ADMIN_PASSWORD', getenv('ADMIN_PASSWORD') ?: '');
+// Optional visual assets. Leave blank to disable.
+// Examples: 'assets/favicon.png', 'assets/cursor.cur'
+define('SITE_FAVICON', '');
+define('SITE_CURSOR', '');
+// Set both to 0 or greater only when you need a custom cursor hotspot.
+define('SITE_CURSOR_HOTSPOT_X', -1);
+define('SITE_CURSOR_HOTSPOT_Y', -1);
 
+// ===== Admin =====
+// Recommended: configure SITE_ADMIN_PASSWORD as a server environment variable.
+// If it is empty, the admin login UI is disabled.
+define('ADMIN_PASSWORD', getenv('SITE_ADMIN_PASSWORD') ?: '');
+
+// ===== Storage =====
 define('DATA_DIR', __DIR__ . '/data');
 define('IMAGE_DIR', DATA_DIR . '/images');
 define('PDF_DIR', DATA_DIR . '/pdfs');
@@ -20,16 +32,18 @@ define('ALLOWED_IMAGE_EXT', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp']);
 define('IMAGES_PER_PAGE', 1);
 define('PDFS_PER_PAGE', 1);
 
-// Confirmation prompt used for blind posts.
+// Optional content gate used by image/PDF posts.
 define('CONFIRM_QUESTION', '이 콘텐츠를 열람하시겠습니까?');
 
-// BGM settings. Add a playlist/video ID only in your deployment environment or private copy.
+// ===== BGM =====
+// Fill either a YouTube playlist ID or a single video ID.
 define('BGM_PLAYLIST_ID', '');
 define('BGM_VIDEO_ID', '');
 define('BGM_DEFAULT_VOLUME', 50);
 define('BGM_AUTOPLAY', true);
 
-define('HOME_TEXT', 'Archive');
+// Home accordion label.
+define('HOME_TEXT', 'welcome');
 
 foreach ([DATA_DIR, IMAGE_DIR, PDF_DIR, THUMB_DIR] as $dir) {
     if (!is_dir($dir)) mkdir($dir, 0755, true);

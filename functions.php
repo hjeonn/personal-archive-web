@@ -42,6 +42,27 @@ function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
 }
 
+function is_pjax_request(): bool {
+    return isset($_SERVER['HTTP_X_PJAX']) && $_SERVER['HTTP_X_PJAX'] === '1';
+}
+
+function current_url_without_params(array $removeKeys): string {
+    $uri = $_SERVER['REQUEST_URI'] ?? '/';
+    $parts = parse_url($uri);
+    $path = $parts['path'] ?? '/';
+
+    $query = [];
+    if (!empty($parts['query'])) {
+        parse_str($parts['query'], $query);
+    }
+
+    foreach ($removeKeys as $key) {
+        unset($query[$key]);
+    }
+
+    return $path . ($query ? '?' . http_build_query($query) : '');
+}
+
 // ===== IMAGE: 포스트(페이지) 단위 =====
 // 각 포스트는 images[] 배열을 가짐 (한 페이지에 여러 이미지 가능)
 
@@ -366,56 +387,85 @@ function edit_entry(string $type, string $id, string $title, string $memo, bool 
 }
 
 function delete_entry(string $type, string $id): bool {
+    if (!in_array($type, ['image', 'pdf'], true)) return false;
+
     $dbFile = ($type === 'image') ? DB_IMAGES : DB_PDFS;
     $fileDir = ($type === 'image') ? IMAGE_DIR : PDF_DIR;
     $db = db_read($dbFile);
+
     foreach ($db as $i => $entry) {
-        if ($entry['id'] === $id) {
-            if ($type === 'image') {
-                $entry = migrate_image_entry($entry);
-                foreach ($entry['images'] as $img) {
-                    $p = $fileDir . '/' . $img['filename'];
-                    if (file_exists($p)) unlink($p);
-                }
-            } else {
-                $p = $fileDir . '/' . $entry['filename'];
-                if (file_exists($p)) unlink($p);
+        if (($entry['id'] ?? '') !== $id) continue;
+
+        $filesToDelete = [];
+
+        if ($type === 'image') {
+            $entry = migrate_image_entry($entry);
+            foreach ($entry['images'] as $img) {
+                $filename = $img['filename'] ?? '';
+                if ($filename !== '') $filesToDelete[] = $filename;
             }
-            unset($db[$i]);
-            db_write($dbFile, array_values($db));
-            return true;
+        } else {
+            $filename = $entry['filename'] ?? '';
+            if ($filename !== '') $filesToDelete[] = $filename;
         }
+
+        unset($db[$i]);
+
+        // DB에서 항목을 제거하지 못했다면 실제 파일도 지우지 않는다.
+        if (!db_write($dbFile, array_values($db))) {
+            return false;
+        }
+
+        // DB 반영 후 로컬 파일 정리. 외부 URL 참조는 filename이 비어 있어 건너뛴다.
+        foreach ($filesToDelete as $filename) {
+            $path = $fileDir . '/' . $filename;
+            if (is_file($path)) @unlink($path);
+        }
+
+        return true;
     }
+
     return false;
 }
 
 // 포스트 내 개별 이미지 삭제
 function delete_single_image(string $postId, string $imgId): bool {
     $db = db_read(DB_IMAGES);
-    foreach ($db as &$entry) {
+
+    foreach ($db as $i => $entry) {
         $entry = migrate_image_entry($entry);
-        if ($entry['id'] === $postId) {
-            foreach ($entry['images'] as $j => $img) {
-                if ($img['id'] === $imgId) {
-                    $p = IMAGE_DIR . '/' . $img['filename'];
-                    if (file_exists($p)) unlink($p);
-                    unset($entry['images'][$j]);
-                    $entry['images'] = array_values($entry['images']);
-                    if (empty($entry['images'])) {
-                        // 이미지가 모두 없으면 포스트 자체 삭제
-                        foreach ($db as $k => $e) {
-                            if ($e['id'] === $postId) { unset($db[$k]); break; }
-                        }
-                        db_write(DB_IMAGES, array_values($db));
-                    } else {
-                        db_write(DB_IMAGES, $db);
-                    }
-                    return true;
-                }
+        if (($entry['id'] ?? '') !== $postId) continue;
+
+        foreach ($entry['images'] as $j => $img) {
+            if (($img['id'] ?? '') !== $imgId) continue;
+
+            $filename = $img['filename'] ?? '';
+
+            unset($entry['images'][$j]);
+            $entry['images'] = array_values($entry['images']);
+
+            if (empty($entry['images'])) {
+                // 마지막 이미지라면 포스트 자체를 DB에서 제거한다.
+                unset($db[$i]);
+            } else {
+                $db[$i] = $entry;
             }
+
+            if (!db_write(DB_IMAGES, array_values($db))) {
+                return false;
+            }
+
+            if ($filename !== '') {
+                $path = IMAGE_DIR . '/' . $filename;
+                if (is_file($path)) @unlink($path);
+            }
+
+            return true;
         }
+
+        return false;
     }
-    unset($entry);
+
     return false;
 }
 
