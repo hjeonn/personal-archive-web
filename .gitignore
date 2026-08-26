@@ -1,0 +1,8 @@
+data/images/*
+data/pdfs/*
+data/thumbs/*
+!data/images/.gitkeep
+!data/pdfs/.gitkeep
+!data/thumbs/.gitkeep
+.env
+.env.*
